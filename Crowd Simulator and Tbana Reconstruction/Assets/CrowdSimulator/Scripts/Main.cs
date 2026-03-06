@@ -119,6 +119,9 @@ public class Main : MonoBehaviour {
 		
 	}
 	
+	float[] timeNodes = {1f, 3f, 5f, 7f, 9f, 11f, 13f}; 
+	HashSet <float> calculatedTime = new HashSet<float>();
+	
 
 	/**
 	 * Main simulation loop which is called every frame
@@ -147,8 +150,19 @@ public class Main : MonoBehaviour {
 		}
 		//Pair-wise collision handling between agents
 		Grid.instance.collisionHandling(ref agentList);
+		
+		foreach (float t in timeNodes) {
+			if (!calculatedTime.Contains(t) && Time.time >= t) {
+				calculatedTime.Add(t);
+				Debug.Log("Time: " + t);
+				CalculateEntropy();
+				Debug.Log("=====================");
+			}
+			
+		}
 
 		CalculateEntropy();
+		
 
 		//flags
 		Grid.instance.showSplattedDensity = showSplattedDensity;
