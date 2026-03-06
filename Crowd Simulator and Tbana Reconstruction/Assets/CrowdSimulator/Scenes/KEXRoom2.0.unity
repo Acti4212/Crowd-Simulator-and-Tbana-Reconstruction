@@ -294,7 +294,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 114000011453258514, guid: ead6e50105b8a264ab4274d310eab2f7, type: 3}
       propertyPath: agentMaxSpeed
-      value: 2
+      value: 1.4
       objectReference: {fileID: 0}
     - target: {fileID: 114000011453258514, guid: ead6e50105b8a264ab4274d310eab2f7, type: 3}
       propertyPath: agentMinSpeed
@@ -656,7 +656,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4000014151629302, guid: 3ec909799a13ee84d9a7d4f665417e89, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 3.44
+      value: 3.22
       objectReference: {fileID: 0}
     - target: {fileID: 4000014151629302, guid: 3ec909799a13ee84d9a7d4f665417e89, type: 3}
       propertyPath: m_LocalRotation.w
