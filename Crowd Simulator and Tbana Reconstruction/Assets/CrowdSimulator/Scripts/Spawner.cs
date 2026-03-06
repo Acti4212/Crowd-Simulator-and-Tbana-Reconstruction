@@ -59,6 +59,9 @@ public class Spawner : MonoBehaviour {
 	public float spawnRate;
 
 	internal Dictionary<string, int> skins;
+	
+	// Lägg till en tolerans för positionsjämförelse
+	private const float POSITION_THRESHOLD = 0.1f;
 
 	// Set the node index for this spawner's node
 	public void SetNode(int node)
@@ -72,12 +75,21 @@ public class Spawner : MonoBehaviour {
 	*/
 	private void SetGoal()
 	{
-		goal = map.goals[0];
+		// Standardmål är första målnoden
+		goal = map.goals.Count > 0 ? map.goals[0] : 0;
+		
 		if (customGoal != null) {
-			//OPT: Use dictionary in mapgen to get constant time access!
+			Debug.Log($"Looking for goal at position: {customGoal.transform.position}");
+			Debug.Log($"Number of nodes in map: {map.allNodes.Count}");
+			
+			// Använd avstånd med tolerans istället för direkt positionsjämförelse
 			for(int i = 0; i < map.allNodes.Count; ++i) {
-				if (map.allNodes [i].transform.position == customGoal.transform.position) {
+				float distance = Vector3.Distance(map.allNodes[i].transform.position, customGoal.transform.position);
+				Debug.Log($"Node {i} at {map.allNodes[i].transform.position}, distance: {distance}");
+				
+				if (distance < POSITION_THRESHOLD) {
 					goal = i;
+					Debug.Log($"Found matching goal node at index {goal}");
 					break;
 				}
 			}
@@ -150,59 +162,141 @@ public class Spawner : MonoBehaviour {
 	 **/
 	public List<Agent> spawnRandomAgents(int numberOfAgents) {
 		List<Agent> agents = new List<Agent> ();
-		int goal = 0;
-		if (customGoal == null) {
-			Debug.Log ("Please set a goal in the spawner");
+		
+		// Kontrollera att det finns noder i kartan
+		if (map.allNodes == null || map.allNodes.Count == 0) {
+			Debug.LogError("No nodes in the map! Make sure map generation worked correctly.");
 			return new List<Agent>();
 		}
-		//OPT: Use dictionary in mapgen to get constant time access!
+		
+		int goal = 0;
+		if (customGoal == null) {
+			Debug.LogError("Please set a goal in the spawner");
+			return new List<Agent>();
+		}
+		
+		// Använd avstånd med tolerans istället för direkt positionsjämförelse
+		bool goalFound = false;
 		for (int i = 0; i < map.allNodes.Count; ++i) {
-			if (map.allNodes [i].transform.position == customGoal.transform.position) {
+			if (Vector3.Distance(map.allNodes[i].transform.position, customGoal.transform.position) < POSITION_THRESHOLD) {
 				goal = i;
+				goalFound = true;
+				Debug.Log($"Found goal node at index {goal}");
 				break;
 			}
 		}
+		
+		if (!goalFound) {
+			Debug.LogError($"Could not find goal node at position {customGoal.transform.position}. Using first goal node as fallback.");
+			goal = map.goals.Count > 0 ? map.goals[0] : 0;
+		}
 
+		// Definiera rummets storlek (8x8)
+		float roomSize = 8f;
+		float halfRoom = roomSize / 2f;
+		
+		// Använd spawnerns position som centrum för rummet
+		Vector3 roomCenter = transform.position;
+		
 		for (int i = 0; i < numberOfAgents; ++i) {
-			Vector3 pos = new Vector3 (Random.Range (X.x, X.y), 10.0f, Random.Range (Z.x, Z.y));
+			// Spawna agenter inom 8x8 området centrerat på spawnern
+			Vector3 pos = new Vector3 (
+				Random.Range(roomCenter.x - halfRoom, roomCenter.x + halfRoom), 
+				10.0f, 
+				Random.Range(roomCenter.z - halfRoom, roomCenter.z + halfRoom)
+			);
+			
 			materialColor = Materials.GetMaterial (Random.Range (0, Settings.numberOfColors)); //Random colors
-			while (Physics.Raycast (pos, new Vector3 (0.0f, -1.0f, 0.0f), 20f)) { //Check to see if place occupied by static obstacle
-				pos.x = Random.Range (X.x, X.y);
-				pos.z = Random.Range (Z.x, Z.y);
+			
+			// Kontrollera att platsen inte är blockerad av statiska hinder
+			int maxAttempts = 50;
+			int attempts = 0;
+			while (Physics.Raycast (pos, new Vector3 (0.0f, -1.0f, 0.0f), 20f) && attempts < maxAttempts) { 
+				pos.x = Random.Range(roomCenter.x - halfRoom, roomCenter.x + halfRoom);
+				pos.z = Random.Range(roomCenter.z - halfRoom, roomCenter.z + halfRoom);
+				attempts++;
 			}
+			
+			if (attempts >= maxAttempts) {
+				Debug.LogWarning("Could not find free spawn position after " + maxAttempts + " attempts");
+				continue;
+			}
+			
 			pos.y = 2.0f;
 			Agent a = Instantiate (agentModels.transform.GetChild(Random.Range(0, agentModels.transform.childCount)).GetComponent<Agent>()) as Agent;
 			a.transform.position = pos;
+			
 			float closest = -1;
 			int start = -1;
 			bool init = false;
-			//Find the closest available customNode as a start node. O(n) time where n is the number of nodes in the world.
+			
+			// Hitta den närmaste tillgängliga startnoden
 			for (int j = 0; j < map.allNodes.Count; ++j) {
-				if (!Physics.Raycast (pos, (map.allNodes [j].transform.position - pos).normalized, (map.allNodes [j].transform.position-pos).magnitude)) {
-					if (map.allNodes[j].transform.position != transform.position && (!init ||  (map.allNodes [j].transform.position-pos).magnitude < closest)) {
-						closest = (map.allNodes [j].transform.position - pos).magnitude;
+    			// Skippa spawnnoder och goalnoden
+    			CustomNode cn = map.allNodes[j].GetComponent<CustomNode>();
+    			if (cn != null && (cn.isSpawn || cn.isGoal))
+        			continue;
+
+    			float distance = (map.allNodes[j].transform.position - pos).magnitude;
+
+    			if (!Physics.Raycast(pos, (map.allNodes[j].transform.position - pos).normalized, distance)) {
+        			if (!init || distance < closest) {
+            			closest = distance;
+            			start = j;
+            			init = true;
+        			}
+    			}
+			}
+			
+			// Om ingen startnod hittades, använd första tillgängliga noden
+			if (!init) {
+				for (int j = 0; j < map.allNodes.Count; ++j) {
+					if (map.allNodes[j].transform.position != transform.position) {
 						start = j;
 						init = true;
-					} 
+						Debug.LogWarning("Using fallback start node " + j + " without line-of-sight check");
+						break;
+					}
 				}
 			}
-			if (start < 0 || goal < 0) {
-				Debug.Log (a.transform.position);
-				Debug.Log ("Insufficient goal nodes in the map. Please place more in empty environments or use a higher spawn-rate of sampled nodes");
-				return new List<Agent> ();
+			
+			if (start < 0) {
+				Debug.LogError($"Could not find any start node for agent at position {a.transform.position}");
+				Destroy(a.gameObject);
+				continue;
+			}
+			
+			if (goal < 0 || goal >= map.allNodes.Count) {
+				Debug.LogError($"Invalid goal node index: {goal}");
+				Destroy(a.gameObject);
+				continue;
 			}
 
-			a.path = map.shortestPaths [start] [goal];
-			a.pathIndex = 0; //Walk towards first node
-			a.preferredVelocity = (map.allNodes[a.path[a.pathIndex]].getTargetPoint(pos) - pos).normalized;
+			// Kontrollera att path finns
+			if (map.shortestPaths == null || map.shortestPaths.Count <= start || 
+			    map.shortestPaths[start] == null || map.shortestPaths[start].Count <= goal ||
+			    map.shortestPaths[start][goal] == null) {
+				Debug.LogError($"No path found from node {start} to node {goal}");
+				Destroy(a.gameObject);
+				continue;
+			}
 
-			if (a.transform.childCount > 0) { //Does the agent have a mesh to color?
+			a.path = new List<int>(map.shortestPaths[start][goal]);
+			a.pathIndex = 0;
+			
+			if (a.path.Count > 0) {
+				a.preferredVelocity = (map.allNodes[a.path[a.pathIndex]].getTargetPoint(pos) - pos).normalized;
+			}
+
+			if (a.transform.childCount > 0) {
 				Renderer ss = a.transform.GetChild (0).GetComponent<Renderer> ();
-				if (ss != null)
-					ss.material.mainTexture = (Texture)Resources.Load (a.tag+"-"+Random.Range(0, skins[a.tag]));
+				if (ss != null && skins.ContainsKey(a.tag))
+					ss.material.mainTexture = (Texture)Resources.Load (a.tag+"-"+Random.Range(1, skins[a.tag]+1));
 			}
 			agents.Add (a);
 		}
+		
+		Debug.Log($"Successfully spawned {agents.Count} agents out of {numberOfAgents} requested");
 		return agents;
 	}
 
