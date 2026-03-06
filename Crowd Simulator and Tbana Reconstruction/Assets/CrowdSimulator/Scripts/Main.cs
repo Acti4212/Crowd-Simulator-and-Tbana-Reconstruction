@@ -161,9 +161,6 @@ public class Main : MonoBehaviour {
 			
 		}
 
-		CalculateEntropy();
-		
-
 		//flags
 		Grid.instance.showSplattedDensity = showSplattedDensity;
 		Grid.instance.showSplattedVelocity = showSplattedVelocity;
@@ -197,7 +194,7 @@ public class Main : MonoBehaviour {
 		foreach (int numPeople in dir) {
 			if (numPeople == 0) continue;
 			float x = numPeople / (float)totAgents;
-			float eq = x*((float)Math.Log(x));
+			float eq = x*((float)Math.Log10(x));
 			EN1 += eq;
 		}
 
@@ -207,14 +204,15 @@ public class Main : MonoBehaviour {
 		int[] veloMag = new int[8];
 
 		foreach (Agent a in agentList) {
-			int intervalVeloMag = (int)(Math.Floor(a.currentSpeed/0.25) % 8);
+			//int intervalVeloMag = (int)(Math.Floor(a.currentSpeed/0.25) % 8);
+			int intervalVeloMag = Mathf.Min((int)(a.currentSpeed / 0.175f), 7);
 			veloMag[intervalVeloMag]++;
 		}
 		
 		foreach (int numPeople in veloMag) {
 			if (numPeople == 0) continue;
 			float x = numPeople / (float)totAgents;
-			float eq = x*((float)Math.Log(x));
+			float eq = x*((float)Math.Log10(x));
 			EN2 += eq;
 		}
 
@@ -225,5 +223,6 @@ public class Main : MonoBehaviour {
 		Debug.Log("EN: " + EN);
 		Debug.Log("EN1: " + EN1);
 		Debug.Log("EN2: " + EN2);
+		Debug.Log("Antal agenter: " + totAgents);
 	}
 }
