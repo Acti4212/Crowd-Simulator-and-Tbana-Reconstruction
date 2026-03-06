@@ -26,6 +26,7 @@ public class Agent : MonoBehaviour {
 	public float walkingSpeed;
     public float maxWaitTime = 2f;
 	public float currentSpeed;
+	public float currentDirection;
 
 	
 	internal void Start() {
@@ -207,6 +208,12 @@ public class Agent : MonoBehaviour {
 
 		calculatePreferredVelocity(ref map);
 		setCorrectedVelocity ();
+
+		currentSpeed = velocity.magnitude;
+		if (velocity.magnitude > 0.01f) {
+    		currentDirection = Mathf.Atan2(velocity.x, velocity.z) * Mathf.Rad2Deg;
+    		if (currentDirection < 0) currentDirection += 360f;
+		}
 
 		prevPos = transform.position;
 

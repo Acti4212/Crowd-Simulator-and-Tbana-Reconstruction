@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.Video;
+using System;
 
 public class Main : MonoBehaviour {
 
@@ -146,6 +148,8 @@ public class Main : MonoBehaviour {
 		//Pair-wise collision handling between agents
 		Grid.instance.collisionHandling(ref agentList);
 
+		CalculateEntropy();
+
 		//flags
 		Grid.instance.showSplattedDensity = showSplattedDensity;
 		Grid.instance.showSplattedVelocity = showSplattedVelocity;
@@ -155,5 +159,57 @@ public class Main : MonoBehaviour {
 
 		Grid.instance.dt = customTimeStep ? timeStep : Time.deltaTime;
 
+	}
+
+	void CalculateEntropy() {
+		int totAgents = agentList.Count; //N
+		float EN1 = 0;
+		float EN2 = 0;
+		float EN = 0;
+		float alpha = 0.5f;
+		
+		if (totAgents == 0) {
+			return;
+		}
+		
+		//En1 direction entropy
+		int[] dir = new int[8];
+		
+		foreach (Agent a in agentList) {
+			int intervalDir = (int)(Math.Floor((a.currentDirection) / 45f) % 8);
+			dir[intervalDir]++;
+        }
+
+		foreach (int numPeople in dir) {
+			if (numPeople == 0) continue;
+			float x = numPeople / (float)totAgents;
+			float eq = x*((float)Math.Log(x));
+			EN1 += eq;
+		}
+
+		EN1 = -EN1;
+	
+		//EN 2 velocity magnitude entropy
+		int[] veloMag = new int[8];
+
+		foreach (Agent a in agentList) {
+			int intervalVeloMag = (int)(Math.Floor(a.currentSpeed/0.25) % 8);
+			veloMag[intervalVeloMag]++;
+		}
+		
+		foreach (int numPeople in veloMag) {
+			if (numPeople == 0) continue;
+			float x = numPeople / (float)totAgents;
+			float eq = x*((float)Math.Log(x));
+			EN2 += eq;
+		}
+
+		EN2 = -EN2;
+
+		EN = (alpha * EN1) + (alpha * EN2);
+
+		Debug.Log("EN: " + EN);
+		Debug.Log("EN1: " + EN1);
+		Debug.Log("EN2: " + EN2);
 	}
 }
