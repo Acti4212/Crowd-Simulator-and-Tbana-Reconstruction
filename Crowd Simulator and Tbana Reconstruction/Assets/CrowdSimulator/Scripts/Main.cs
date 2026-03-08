@@ -177,7 +177,7 @@ public class Main : MonoBehaviour {
 		float EN1 = 0;
 		float EN2 = 0;
 		float EN = 0;
-		float alpha = 0.5f;
+		float alpha_en = 0.5f;
 		
 		if (totAgents == 0) {
 			return;
@@ -204,7 +204,6 @@ public class Main : MonoBehaviour {
 		int[] veloMag = new int[8];
 
 		foreach (Agent a in agentList) {
-			//int intervalVeloMag = (int)(Math.Floor(a.currentSpeed/0.25) % 8);
 			int intervalVeloMag = Mathf.Min((int)(a.currentSpeed / 0.175f), 7);
 			veloMag[intervalVeloMag]++;
 		}
@@ -218,11 +217,11 @@ public class Main : MonoBehaviour {
 
 		EN2 = -EN2;
 
-		EN = (alpha * EN1) + (alpha * EN2);
+		EN = (alpha_en * EN1) + (alpha_en * EN2);
 
 		Debug.Log("EN: " + EN);
-		Debug.Log("EN1: " + EN1);
-		Debug.Log("EN2: " + EN2);
+		Debug.Log("EN1_riktning: " + EN1);
+		Debug.Log("EN2_hastighet: " + EN2);
 		Debug.Log("Antal agenter: " + totAgents);
 	}
 }
