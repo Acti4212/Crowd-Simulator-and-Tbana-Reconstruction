@@ -114,6 +114,8 @@ public class Agent : MonoBehaviour {
 	/**
 	 * Calculate the actual velocity of this agent, based on continuum, preferred and collision avoidance velocities
 	 **/ 
+	
+	
 	internal void setCorrectedVelocity() {
 		calculateDensityAtPosition ();
 		calculateContinuumVelocity ();
@@ -121,24 +123,34 @@ public class Agent : MonoBehaviour {
 		velocity = preferredVelocity + (densityAtAgentPosition - 1 / Mathf.Pow (Grid.instance.cellLength, 2)) / Grid.maxDensity
 		* (continuumVelocity - preferredVelocity);
 		velocity.y = 0f;
-		transform.forward = velocity.normalized;
-		velocity = velocity + collisionAvoidanceVelocity;
+
+		// Minska collision-påverkan vid dörren
+    	float collisionWeight = 0.3f; // Bara 30% av collision-kraften
+		velocity = velocity + (collisionAvoidanceVelocity * collisionWeight);
+    
+    	transform.forward = velocity.normalized;
+		//transform.forward = velocity.normalized;
+		//velocity = velocity + collisionAvoidanceVelocity;
 	}
 
-	internal bool canSeeNext(ref MapGen.map map, int modifier) {
+	/**internal bool canSeeNext(ref MapGen.map map, int modifier) {
 		if (pathIndex + modifier< path.Count && pathIndex + modifier >= 0 && pathIndex + modifier < map.allNodes.Count) {
 			//Can we see next goal?
 			Vector3 next = map.allNodes[path[pathIndex+modifier]].getTargetPoint(transform.position);
 			Vector3 dir = next - transform.position;
+			
 			if(!Physics.Raycast (transform.position, dir.normalized, dir.magnitude)) {
 				return true;
 			}
 		}
 		return false;
-	}
+	}**/
+	
 	/**
 	 * Calculate the preferred velocity by looking at desired path
 	 **/ 
+
+	/**
 	bool change = false;
 	internal void calculatePreferredVelocityMap(ref MapGen.map map) {
 		previousDirection = preferredVelocity.normalized;
@@ -174,7 +186,96 @@ public class Agent : MonoBehaviour {
 		preferredVelocity = preferredVelocity * walkingSpeed;
 		preferredVelocity.y = 0f;
 	}
+	**/
 
+	internal void calculatePreferredVelocityMap(ref MapGen.map map) {
+		if (done || path == null || path.Count == 0) return;
+		
+		// Säkerställ att pathIndex är giltig
+		if (pathIndex >= path.Count) {
+			done = true;
+			return;
+		}
+		
+		Vector3 targetPos;
+		Vector3 desiredDirection;
+		
+		// WALKBACK: Kan vi se nuvarande mål?
+		if (Grid.instance.walkBack && pathIndex > 0 && !CanSeeNextNode(pathIndex, ref map)) {
+			// Kan inte se nuvarande mål - gå tillbaka till förra noden!
+			targetPos = map.allNodes[path[pathIndex-1]].getTargetPoint(transform.position);
+			desiredDirection = (targetPos - transform.position).normalized;
+		} else {
+			// Normalfallet - fortsätt mot nuvarande mål
+			targetPos = map.allNodes[path[pathIndex]].getTargetPoint(transform.position);
+			float distanceToTarget = (targetPos - transform.position).magnitude;
+			float threshold = map.allNodes[path[pathIndex]].getThreshold();
+			
+			// Har vi nått målet?
+			if (distanceToTarget < threshold || CanSeeNextNode(pathIndex + 1, ref map)) {
+				// Gå till nästa nod
+				pathIndex++;
+				
+				if (pathIndex >= path.Count) {
+					done = true;
+					return;
+				}
+				
+				targetPos = map.allNodes[path[pathIndex]].getTargetPoint(transform.position);
+			}
+			
+			desiredDirection = (targetPos - transform.position).normalized;
+		}
+		
+		// Smooth turning (samma för båda fallen)
+		if (Grid.instance.smoothTurns && preferredVelocity.magnitude > 0.1f) {
+			float turnSpeed = 120f; // grader per sekund
+			float maxTurnAngle = turnSpeed * Grid.instance.dt;
+			
+			desiredDirection = Vector3.RotateTowards(
+				preferredVelocity.normalized,
+				desiredDirection,
+				maxTurnAngle * Mathf.Deg2Rad,
+				0f
+			).normalized;
+		}
+		
+		preferredVelocity = desiredDirection * walkingSpeed;
+	}
+
+	private bool CanSeeNextNode(int nextIndex, ref MapGen.map map) {
+		if (nextIndex >= path.Count) return false;
+		
+		Vector3 nextPos = map.allNodes[path[nextIndex]].getTargetPoint(transform.position);
+		Vector3 direction = nextPos - transform.position;
+		float distance = direction.magnitude;
+		
+		// Om målet är väldigt nära, kan vi alltid se det
+		if (distance < 0.3f) return true;
+		
+		// Använd SphereCast för att ta hänsyn till agentens storlek
+		RaycastHit hit;
+		float agentRadius = 0.25f; // Standardvärde
+		
+		Collider col = GetComponent<Collider>();
+		if (col != null) {
+			agentRadius = col.bounds.extents.magnitude * 0.7f;
+		}
+		
+		if (Physics.SphereCast(transform.position + Vector3.up * 0.5f, 
+							agentRadius * 0.5f,
+							direction.normalized, 
+							out hit, 
+							distance)) {
+			// Om vi träffar målet självt, är det ok
+			if (hit.collider != null && hit.collider.gameObject == map.allNodes[path[nextIndex]].gameObject) {
+				return true;
+			}
+			return false;  // Hinder i vägen
+		}
+		
+		return true;
+	}
 	/**
 	 * Calculate the preferred velocity of a single uncharted point as a goal 
 	 **/
@@ -201,6 +302,8 @@ public class Agent : MonoBehaviour {
 	 * Change the position of the agent and reset variables. 
 	 * Do animations.
 	 **/
+	
+	/**
 	internal void changePosition(ref MapGen.map map) {
 		if (done) {
 			return; // Don't do anything
@@ -224,6 +327,51 @@ public class Agent : MonoBehaviour {
 		if(rbody != null) { rbody.velocity = Vector3.zero; }
 		collisionAvoidanceVelocity = Vector3.zero;
 
+		Animate(prevPos);
+	} **/
+
+	
+	internal void changePosition(ref MapGen.map map) {
+		if (done) return;
+		
+		calculatePreferredVelocity(ref map);
+		setCorrectedVelocity();
+		
+		currentSpeed = velocity.magnitude;
+		if (velocity.magnitude > 0.01f) {
+			currentDirection = Mathf.Atan2(velocity.x, velocity.z) * Mathf.Rad2Deg;
+			if (currentDirection < 0) currentDirection += 360f;
+		}
+		
+		prevPos = transform.position;
+		
+		// Förbättrad väggdetektion med flera raycasts
+		Vector3 moveDir = velocity * Grid.instance.dt;
+		Vector3 newPosition = transform.position + moveDir;
+		newPosition.y = 0.0f;
+		
+		// Huvud-raycast framåt
+		RaycastHit hit;
+		if (Physics.Raycast(transform.position + Vector3.up * 0.5f, moveDir.normalized, out hit, moveDir.magnitude + 0.3f)) {
+			// Om vi är nära vägg och går mot den
+			if (hit.distance < 0.5f) {
+				// Försök glida längs väggen
+				Vector3 slideDir = Vector3.ProjectOnPlane(moveDir, hit.normal);
+				newPosition = transform.position + slideDir;
+				newPosition.y = 0.0f;
+				
+				// Om vi fortfarande är för nära väggen, tryck bort lite
+				if (hit.distance < 0.2f) {
+					transform.position += hit.normal * 0.1f;
+				}
+			}
+		}
+		
+		transform.position = newPosition;
+		
+		if(rbody != null) { rbody.velocity = Vector3.zero; }
+		collisionAvoidanceVelocity = Vector3.zero;
+		
 		Animate(prevPos);
 	}
 
