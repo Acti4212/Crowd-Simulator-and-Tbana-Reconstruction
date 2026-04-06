@@ -9,7 +9,8 @@ public class Spawner : MonoBehaviour {
 		circleSpawn,
 		discSpawn,
 		continuousSpawn,
-		areaSpawn
+		areaSpawn,
+		entropyValidation
 	}
 
 	private int node;	//The node for this spawner
@@ -25,6 +26,7 @@ public class Spawner : MonoBehaviour {
 	public float percentOfThreeInGroup;
 	public float percentOfFourInGroup;
 	public bool useSimpleAgents;
+
 
 	// Circle and disc spawn
 	public float circleRadius;
@@ -147,6 +149,9 @@ public class Spawner : MonoBehaviour {
 		case Method.continuousSpawn:
 				continousSpawn(); 
 			break;
+		case Method.entropyValidation:                          // ← nytt
+        	agentList.AddRange(spawnEntropyValidationAgents()); // ← nytt
+        break;
 		default:
 			agentList = new List<Agent> (); 
 			break;
@@ -379,8 +384,9 @@ public class Spawner : MonoBehaviour {
 	internal IEnumerator spawnContinously(float continousSpawnRate) {
 		float spawnSizeX = transform.localScale.x;
 		float spawnSizeZ = transform.localScale.z;
+		int spawnedCount = 0;
 	
-		if (agentList.Count < mainScript.maxNumberOfAgents) {
+		/**if (agentList.Count < mainScript.maxNumberOfAgents) {
 			Vector3 startPos = new Vector3 (Random.Range (-0.5f, 0.5f), 0.15f, Random.Range (-0.5f, 0.5f)); startPos = transform.TransformPoint (startPos);
 			float randomRange = Random.Range(0.0f, 1.0f);
 			if (!useGroupedAgents || randomRange < individualAgents) {
@@ -399,9 +405,78 @@ public class Spawner : MonoBehaviour {
 					agentList.Add ((Agent)liA [i]);
 				}
 			}
+		} **/
+
+		while (spawnedCount < numberOfAgents) {
+			if (agentList.Count < mainScript.maxNumberOfAgents) {
+				Vector3 startPos = new Vector3(
+					Random.Range(-0.5f, 0.5f), 
+					0.15f, 
+					Random.Range(-0.5f, 0.5f)
+				);
+				startPos = transform.TransformPoint(startPos);
+
+				float randomRange = Random.Range(0.0f, 1.0f);
+				if (!useGroupedAgents || randomRange < individualAgents) {
+					spawnOneAgent(startPos);
+					spawnedCount++;
+				} else {
+					int groupSize;
+					if (randomRange - individualAgents < percentOfTwoInGroup) {
+						groupSize = 2;
+					} else if (randomRange - individualAgents - percentOfTwoInGroup < percentOfThreeInGroup) {
+						groupSize = 3;
+					} else {
+						groupSize = 4;
+					}
+					List<SubgroupAgent> liA = InitGroupAgent(groupSize, startPos, node, goal);
+					for (int i = 0; i < liA.Count; ++i) {
+						agentList.Add((Agent)liA[i]);
+						spawnedCount++;
+					}
+				}
+			}
+
+			yield return new WaitForSeconds (continousSpawnRate);
+			//StartCoroutine (spawnContinously(continousSpawnRate));
 		}
-		yield return new WaitForSeconds (continousSpawnRate);
-		StartCoroutine (spawnContinously(continousSpawnRate));
+	}
+
+	public List<Agent> spawnEntropyValidationAgents() {
+		List<Agent> agents = new List<Agent>();
+
+		float[] directions = { 0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f };
+		//float[] directions = { 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f };
+		//float[] speeds = { 0.09f, 0.28f, 0.47f, 0.66f, 0.84f, 1.03f, 1.22f, 1.41f };
+		float[] speeds = { 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f };
+
+		for (int i = 0; i < 8; i++)
+		{
+			Agent a = Instantiate(
+				agentModels.transform.GetChild(0).GetComponent<Agent>()
+			);
+
+			// Alla spawnar på 0,0
+			a.transform.position = new Vector3(0f, 0f, 0f);
+
+			// Sätt riktning och hastighet
+			a.currentDirection = directions[i];
+			a.currentSpeed = speeds[i];
+
+			float rad = directions[i] * Mathf.Deg2Rad;
+			Vector3 dir = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad));
+			a.velocity = dir * speeds[i];
+
+			// Målet är 10 meter i agentens riktning
+			a.noMap = true;
+			a.noMapGoal = new Vector3(0f, 0f, 0f) + dir * 15f;
+			a.done = false;
+
+			agents.Add(a);
+		}
+
+		Debug.Log("Spawned 8 validation agents");
+		return agents;
 	}
 
 	// BURST SPAWN

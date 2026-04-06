@@ -114,8 +114,7 @@ public class Agent : MonoBehaviour {
 	/**
 	 * Calculate the actual velocity of this agent, based on continuum, preferred and collision avoidance velocities
 	 **/ 
-	
-	
+	 
 	internal void setCorrectedVelocity() {
 		calculateDensityAtPosition ();
 		calculateContinuumVelocity ();
@@ -330,7 +329,6 @@ public class Agent : MonoBehaviour {
 		Animate(prevPos);
 	} **/
 
-	
 	internal void changePosition(ref MapGen.map map) {
 		if (done) return;
 		

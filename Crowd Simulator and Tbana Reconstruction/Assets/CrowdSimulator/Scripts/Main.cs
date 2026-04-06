@@ -119,7 +119,7 @@ public class Main : MonoBehaviour {
 		
 	}
 	
-	float[] timeNodes = {1f, 3f, 5f, 7f, 9f, 11f, 13f}; 
+	float[] timeNodes = {1f, 3f, 5f, 7f, 9f, 11f, 13f, 15f, 17f, 19f, 21f}; 
 	HashSet <float> calculatedTime = new HashSet<float>();
 	
 
@@ -155,7 +155,7 @@ public class Main : MonoBehaviour {
 			if (!calculatedTime.Contains(t) && Time.time >= t) {
 				calculatedTime.Add(t);
 				Debug.Log("Time: " + t);
-				CalculateEntropy();
+				CalculateEntropyValidation();
 				Debug.Log("=====================");
 			}
 			
@@ -204,10 +204,11 @@ public class Main : MonoBehaviour {
 		int[] veloMag = new int[8];
 
 		foreach (Agent a in agentList) {
-			int intervalVeloMag = Mathf.Min((int)(a.currentSpeed / 0.175f), 7);
-			veloMag[intervalVeloMag]++;
+    		float normalized = a.currentSpeed / agentMaxSpeed; // 0..1
+    		int intervalVeloMag = Mathf.Min((int)(normalized * 8f), 7);
+    		veloMag[intervalVeloMag]++;
 		}
-		
+
 		foreach (int numPeople in veloMag) {
 			if (numPeople == 0) continue;
 			float x = numPeople / (float)totAgents;
@@ -219,9 +220,56 @@ public class Main : MonoBehaviour {
 
 		EN = (alpha_en * EN1) + (alpha_en * EN2);
 
-		Debug.Log("EN: " + EN);
-		Debug.Log("EN1_riktning: " + EN1);
-		Debug.Log("EN2_hastighet: " + EN2);
-		Debug.Log("Antal agenter: " + totAgents);
+		Debug.Log($"EN: {EN:F4} | EN1_riktning: {EN1:F4} | EN2_hastighet: {EN2:F4} | Antal agenter: {totAgents}");
+	}
+
+	// Hårdkodad validering - bypassa agentsystemet helt
+	void CalculateEntropyValidation() {
+		float[] directions = { 0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f };
+		//float[] directions = { 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f };
+
+		// Bucket-bredd = 1.5 / 8 = 0.1875
+		// Mitten av varje bucket = bucket * 0.1875 + 0.09375
+		//float bucketWidth = agentMaxSpeed / 8f; // dynamiskt baserat på Inspector-värde
+		//float[] speeds = new float[8];
+
+		float[] speeds = { 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f };
+
+		/** for (int i = 0; i < 8; i++) {
+			speeds[i] = bucketWidth * i + bucketWidth / 2f;
+		} **/
+
+		int totAgents = 8;
+		float EN1 = 0, EN2 = 0;
+		float alpha_en = 0.5f;
+
+		int[] dir = new int[8];
+		int[] veloMag = new int[8];
+
+		for (int i = 0; i < 8; i++) {
+			int intervalDir = (int)(Math.Floor(directions[i] / 45f) % 8);
+			dir[intervalDir]++;
+
+			float normalized = speeds[i] / agentMaxSpeed;
+			int intervalVelo = Mathf.Min((int)(normalized * 8f), 7);
+			veloMag[intervalVelo]++;
+		}
+
+		foreach (int n in dir) {
+			if (n == 0) continue;
+			float x = n / (float)totAgents;
+			EN1 += x * (float)Math.Log10(x);
+		}
+		EN1 = -EN1;
+
+		foreach (int n in veloMag) {
+			if (n == 0) continue;
+			float x = n / (float)totAgents;
+			EN2 += x * (float)Math.Log10(x);
+		}
+		EN2 = -EN2;
+
+		float EN = alpha_en * EN1 + alpha_en * EN2;
+		Debug.Log($"EN: {EN:F4} | EN1_riktning: {EN1:F4} | EN2_hastighet: {EN2:F4} | Antal agenter: {totAgents}");
 	}
 }
