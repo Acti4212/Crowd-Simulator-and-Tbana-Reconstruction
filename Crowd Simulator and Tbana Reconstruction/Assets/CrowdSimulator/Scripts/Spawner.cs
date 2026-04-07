@@ -10,7 +10,8 @@ public class Spawner : MonoBehaviour {
 		discSpawn,
 		continuousSpawn,
 		areaSpawn,
-		entropyValidation
+		entropyValidation,
+		twoOpposingAgents
 	}
 
 	private int node;	//The node for this spawner
@@ -149,9 +150,12 @@ public class Spawner : MonoBehaviour {
 		case Method.continuousSpawn:
 				continousSpawn(); 
 			break;
-		case Method.entropyValidation:                          // ← nytt
-        	agentList.AddRange(spawnEntropyValidationAgents()); // ← nytt
+		case Method.entropyValidation:                          
+        	agentList.AddRange(spawnEntropyValidationAgents()); 
         break;
+		case Method.twoOpposingAgents:
+    		agentList.AddRange(SpawnTwoOpposingAgents());
+    		break;
 		default:
 			agentList = new List<Agent> (); 
 			break;
@@ -445,10 +449,10 @@ public class Spawner : MonoBehaviour {
 	public List<Agent> spawnEntropyValidationAgents() {
 		List<Agent> agents = new List<Agent>();
 
-		float[] directions = { 0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f };
-		//float[] directions = { 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f };
-		//float[] speeds = { 0.09f, 0.28f, 0.47f, 0.66f, 0.84f, 1.03f, 1.22f, 1.41f };
-		float[] speeds = { 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f };
+		//float[] directions = { 0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f };
+		float[] directions = { 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f };
+		float[] speeds = { 0.09f, 0.28f, 0.47f, 0.66f, 0.84f, 1.03f, 1.22f, 1.41f };
+		//float[] speeds = { 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f };
 
 		for (int i = 0; i < 8; i++)
 		{
@@ -476,6 +480,52 @@ public class Spawner : MonoBehaviour {
 		}
 
 		Debug.Log("Spawned 8 validation agents");
+		return agents;
+	} 
+
+	public List<Agent> SpawnTwoOpposingAgents() {
+		List<Agent> agents = new List<Agent>();
+
+		 float spacing = 1f;
+
+		for (int i = 0; i < 50; i++) {
+        // Agent moving east (90°)
+
+		float zPos = i * spacing;
+
+        Agent a1 = Instantiate(
+            agentModels.transform.GetChild(0).GetComponent<Agent>()
+        );
+
+		a1.transform.position = new Vector3(-10f, 0f, zPos);
+		a1.currentDirection = 90f;
+		a1.currentSpeed = mainScript.agentMaxSpeed;
+		float rad1 = 90f * Mathf.Deg2Rad;
+		Vector3 dir1 = new Vector3(Mathf.Sin(rad1), 0f, Mathf.Cos(rad1));
+		a1.velocity = dir1 * a1.currentSpeed;
+		a1.preferredVelocity = dir1;
+		a1.noMap = true;
+		a1.noMapGoal = new Vector3(10f, 0f, zPos);  // goal is on the right
+		a1.done = false;
+		agents.Add(a1);
+
+		// Agent 2: starts right, moves left (direction 270° = west)
+		/**Agent a2 = Instantiate(
+			agentModels.transform.GetChild(0).GetComponent<Agent>()
+		);
+		a2.transform.position = new Vector3(10f + 1f, 0f, zPos);
+		a2.currentDirection = 270f;
+		a2.currentSpeed = a1.currentSpeed;
+		float rad2 = 270f * Mathf.Deg2Rad;
+		Vector3 dir2 = new Vector3(Mathf.Sin(rad2), 0f, Mathf.Cos(rad2));
+		a2.velocity = dir2 * a2.currentSpeed;
+		a2.preferredVelocity = dir2; 
+		a2.noMap = true;
+		a2.noMapGoal = new Vector3(-10f, 0f, zPos);  // goal is on the left
+		a2.done = false;
+		agents.Add(a2); **/
+		}
+		Debug.Log("Spawned 50 opposing agents");
 		return agents;
 	}
 

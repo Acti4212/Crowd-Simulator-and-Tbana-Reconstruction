@@ -155,7 +155,7 @@ public class Main : MonoBehaviour {
 			if (!calculatedTime.Contains(t) && Time.time >= t) {
 				calculatedTime.Add(t);
 				Debug.Log("Time: " + t);
-				CalculateEntropyValidation();
+				CalculateEntropy();
 				Debug.Log("=====================");
 			}
 			
@@ -223,7 +223,6 @@ public class Main : MonoBehaviour {
 		Debug.Log($"EN: {EN:F4} | EN1_riktning: {EN1:F4} | EN2_hastighet: {EN2:F4} | Antal agenter: {totAgents}");
 	}
 
-	// Hårdkodad validering - bypassa agentsystemet helt
 	void CalculateEntropyValidation() {
 		float[] directions = { 0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f };
 		//float[] directions = { 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f };
