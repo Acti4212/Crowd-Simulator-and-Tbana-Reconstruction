@@ -172,6 +172,7 @@ public class Main : MonoBehaviour {
 
 	}
 
+	
 	void CalculateEntropy() {
 		int totAgents = agentList.Count; //N
 		float EN1 = 0;
@@ -223,6 +224,104 @@ public class Main : MonoBehaviour {
 		Debug.Log($"EN: {EN:F4} | EN1_riktning: {EN1:F4} | EN2_hastighet: {EN2:F4} | Antal agenter: {totAgents}");
 	}
 
+	
+	void CalculateEntropyGrid() {
+		int gridRows = 4;
+		int gridCols = 4;
+
+		float roomXMin = -4.337425f;
+		float roomXMax =  3.862575f;
+		float roomZMin = -0.6315427f;
+		float roomZMax =  7.568457f;
+
+		float arenaWidth  = roomXMax - roomXMin;  
+		float arenaHeight = roomZMax - roomZMin; 
+
+		float cellW = arenaWidth  / gridCols;
+		float cellH = arenaHeight / gridRows;
+
+		float alpha_en = 0.5f;
+		float totalEN = 0f;
+		int zonesWithAgents = 0;
+
+		int zonesWithOneAgent = 0;
+		int zonesWithZeroEN1 = 0;
+		int zonesWithZeroEN2 = 0;
+
+		for (int r = 0; r < gridRows; r++) {
+			for (int c = 0; c < gridCols; c++) {
+				// Zonens gränser
+				float xMin = roomXMin + c * cellW;
+				float xMax = xMin + cellW;
+				float zMin = roomZMin + r * cellH;
+				float zMax = zMin + cellH;
+
+				// Filtrera agenter i denna zon
+				List<Agent> zoneAgents = new List<Agent>();
+				foreach (Agent a in agentList) {
+					Vector3 p = a.transform.position;
+					if (p.x >= xMin && p.x < xMax && p.z >= zMin && p.z < zMax)
+						zoneAgents.Add(a);
+				}
+
+				int N = zoneAgents.Count;
+				if (N == 0) continue;
+
+				// EN1 – riktningsentropi
+				int[] dir = new int[8];
+				foreach (Agent a in zoneAgents) {
+					int bin = (int)(Math.Floor(a.currentDirection / 45f) % 8);
+					dir[bin]++;
+				}
+
+				float EN1 = 0f;
+				foreach (int n in dir) {
+					if (n == 0) continue;
+					float x = n / (float)N;
+					float eq = x * ((float)Math.Log10(x));
+					EN1 += eq;
+				}
+
+				EN1 = -EN1;
+
+				if (N == 1) zonesWithOneAgent++;
+				if (EN1 == 0f) zonesWithZeroEN1++;
+				
+
+				// EN2 – hastighetsentropi
+				int[] veloMag = new int[8];
+				foreach (Agent a in zoneAgents) {
+					float normalized = a.currentSpeed / agentMaxSpeed;
+					int bin = Mathf.Min((int)(normalized * 8f), 7);
+					veloMag[bin]++;
+				}
+
+				float EN2 = 0f;
+				foreach (int n in veloMag) {
+					if (n == 0) continue;
+					float x = n / (float)N;
+					float eq = x * ((float)Math.Log10(x));
+					EN2 += eq;
+				}
+
+				EN2 = -EN2;
+
+				if (EN2 == 0f) zonesWithZeroEN2++;
+
+				float EN = alpha_en * EN1 + alpha_en * EN2;
+
+				Debug.Log($"Zon ({r},{c}): EN={EN:F4} | EN1={EN1:F4} | EN2={EN2:F4} | N={N}");
+
+				totalEN += EN;
+				zonesWithAgents++;
+			}
+		}
+
+		if (zonesWithAgents == 0) return;
+
+		float meanEN = totalEN / zonesWithAgents;
+		Debug.Log($"==> Medel-EN: {meanEN:F4} över {zonesWithAgents} zoner | Zoner med 1 agent: {zonesWithOneAgent} | Zoner med EN1=0: {zonesWithZeroEN1} | Zoner med EN2=0: {zonesWithZeroEN2}");
+	}
 	void CalculateEntropyValidation() {
 		float[] directions = { 0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f };
 		//float[] directions = { 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f };
